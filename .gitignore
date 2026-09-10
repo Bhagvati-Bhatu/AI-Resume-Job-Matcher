@@ -1,0 +1,27 @@
+# Environment variables
+.env
+
+# Virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Temporary files
+temp_resume.pdf
+
+# IDE
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+
+# Personal resume
+data/resumes/resume.pdf

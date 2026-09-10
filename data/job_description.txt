@@ -1,0 +1,17 @@
+Data Analyst
+
+We are looking for a Data Analyst to join our team.
+
+Requirements:
+- Strong knowledge of Python
+- SQL and database management
+- Experience with Pandas and NumPy
+- Knowledge of data visualization
+- Experience with Power BI or Tableau
+- Understanding of statistics
+- Good analytical and problem-solving skills
+
+Preferred:
+- Machine Learning
+- AWS
+- ETL
