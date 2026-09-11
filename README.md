@@ -24,13 +24,27 @@ It analyzes the resume and provides:
 - RAG retrieval evidence
 - AI-powered resume bullet optimization
 
+## Why This Project?
+
+Traditional resume screening systems often rely heavily on keyword matching.
+
+This project combines keyword-based ATS scoring with semantic similarity and Retrieval-Augmented Generation (RAG) to provide a more meaningful comparison between a resume and a job description.
+
+The system helps candidates understand:
+
+- Which required skills they already have
+- Which skills are missing
+- How closely their experience matches the role
+- Potential ATS issues
+- Which resume bullets can be improved
+
 ## Screenshots
 
 ### Resume Analysis
 
 ![Resume Analysis](screenshots/analysis.png)
 
-### Skills and Skill Gap Analysis
+### Skills & Skill Gap Analysis
 
 ![Skills Analysis](screenshots/skills.png)
 
@@ -45,20 +59,6 @@ It analyzes the resume and provides:
 ### AI Resume Bullet Optimizer
 
 ![Bullet Optimizer](screenshots/bullet-optimizer.png)
-
-## Why This Project?
-
-Traditional resume screening systems often rely heavily on keyword matching.
-
-This project combines keyword-based ATS scoring with semantic similarity and Retrieval-Augmented Generation to provide a more meaningful comparison between a resume and a job description.
-
-The system helps candidates understand:
-
-- Which required skills they already have
-- Which skills are missing
-- How closely their experience matches the role
-- Potential ATS issues
-- Which resume bullets can be improved
 
 ## Key Features
 
@@ -110,21 +110,21 @@ The extracted skills are then compared against the resume.
 
 The ATS engine uses normalized skill matching and aliases to handle variations such as:
 
-- `OOP` ↔ `Object-Oriented Programming`
-- `STLC` ↔ `Software Testing Life Cycle`
-- `SDLC` ↔ `Software Development Life Cycle`
-- `ChatGPT` ↔ `Chat GPT`
-- `Hugging Face` ↔ `HuggingFace`
-- `Power BI` ↔ `PowerBI`
+- OOP ↔ Object-Oriented Programming
+- STLC ↔ Software Testing Life Cycle
+- SDLC ↔ Software Development Life Cycle
+- ChatGPT ↔ Chat GPT
+- Hugging Face ↔ HuggingFace
+- Power BI ↔ PowerBI
 
 This reduces false skill mismatches caused by formatting or naming differences.
 
 ### 6. ATS Scoring
 
-The final ATS score combines the following components:
+The final ATS score combines:
 
 | Component | Weight |
-| :--- | :--- |
+|---|---:|
 | Skill Match | 40% |
 | Semantic Match | 30% |
 | Experience Match | 20% |
@@ -153,15 +153,15 @@ The goal is to improve clarity and keyword alignment while preserving the origin
 
 ## Key Highlights
 
-- Built an end-to-end RAG pipeline for resume-job matching
-- Implemented FAISS-based semantic retrieval over resume sections
-- Used Hugging Face embeddings for semantic search
-- Integrated GPT-OSS-20B for resume analysis and recommendations
-- Implemented structured LLM output validation using Pydantic
-- Developed normalized and alias-aware skill matching
-- Built a weighted ATS scoring engine
-- Added an AI-powered resume bullet optimizer
-- Deployed the application using Streamlit Community Cloud
+- Built an end-to-end RAG pipeline for resume-job matching.
+- Implemented FAISS-based semantic retrieval over resume sections.
+- Used Hugging Face embeddings for semantic search.
+- Integrated GPT-OSS-20B for resume analysis and recommendations.
+- Implemented structured LLM output validation using Pydantic.
+- Developed normalized and alias-aware skill matching.
+- Built a weighted ATS scoring engine.
+- Added an AI-powered resume bullet optimizer.
+- Deployed the application using Streamlit Community Cloud.
 
 ## System Architecture
 
@@ -207,22 +207,18 @@ The goal is to improve clarity and keyword alignment while preserving the origin
         |               |
         v               v
  Improvement Plan   Bullet Optimizer
-
-
 Technology Stack
-| Technology            | Purpose                      |
-| --------------------- | ---------------------------- |
-| Python                | Core programming language    |
-| Streamlit             | Web application interface    |
-| LangChain             | LLM and RAG pipeline         |
-| Hugging Face          | Embeddings and LLM           |
-| Sentence Transformers | Text embeddings              |
-| FAISS                 | Vector similarity search     |
-| PyMuPDF               | PDF text extraction          |
-| Pydantic              | Structured output validation |
-| NumPy                 | Numerical calculations       |
-| GPT-OSS-20B           | Generative AI analysis       |
-
+Technology	Purpose
+Python	Core programming language
+Streamlit	Web application interface
+LangChain	LLM and RAG pipeline
+Hugging Face	Embeddings and LLM
+Sentence Transformers	Text embeddings
+FAISS	Vector similarity search
+PyMuPDF	PDF text extraction
+Pydantic	Structured output validation
+NumPy	Numerical calculations
+GPT-OSS-20B	Generative AI analysis
 Project Structure
 AI-Resume-Job-Matcher/
 │
@@ -245,50 +241,48 @@ AI-Resume-Job-Matcher/
     ├── rag_pipeline.py
     ├── ats_scorer.py
     └── bullet_optimizer.py
-```
-
 RAG Pipeline
+
 The application follows these steps:
-1.Extract text from the uploaded resume
-2.Split the resume into smaller chunks
-3.Generate embeddings for each chunk
-4.Store the embeddings in FAISS
-5.Convert the job description into an embedding
-6.Perform similarity search
-7.Retrieve the most relevant resume chunks
-8.Pass the retrieved context to the LLM
-9.Generate structured resume analysis
-10.Calculate ATS and skill-matching scores
-11.Generate recommendations and improvement suggestions
 
+Extract text from the uploaded resume.
+Split the resume into smaller chunks.
+Generate embeddings for each chunk.
+Store the embeddings in FAISS.
+Convert the job description into an embedding.
+Perform similarity search.
+Retrieve the most relevant resume chunks.
+Pass the retrieved context to the LLM.
+Generate structured resume analysis.
+Calculate ATS and skill matching scores.
+Generate recommendations and improvement suggestions.
 Installation
-1. Clone the Repository
+1. Clone the repository
 git clone https://github.com/Bhagvati-Bhatu/AI-Resume-Job-Matcher.git
-
-2. Open the Project
+2. Open the project
 cd AI-Resume-Job-Matcher
-
-3. Create a Virtual Environment
+3. Create a virtual environment
 python -m venv venv
+4. Activate the virtual environment
 
-4. Activate the Virtual Environment
-Windows
+Windows:
+
 venv\Scripts\activate
-
-macOS/Linux
-source venv/bin/activate
-
-5. Install Dependencies
+5. Install dependencies
 pip install -r requirements.txt
-
 6. Configure Hugging Face
+
 Create a .env file in the project root:
+
 HF_TOKEN=your_huggingface_token
+
 Never commit the .env file to GitHub.
+
 The .env file is already included in .gitignore.
 
-7. Run the Application
+7. Run the application
 streamlit run app.py
+
 The application will open in your browser.
 
 ATS Score Calculation
@@ -297,6 +291,7 @@ Final ATS Score =
   + Semantic Match × 30%
   + Experience Match × 20%
   + Resume Structure × 10%
+
 The structure score is normalized from a 10-point scale to a 100-point scale before calculating the final score.
 
 Example Workflow
@@ -323,14 +318,16 @@ Identify Skill Gaps
 Generate Recommendations
       ↓
 Optimize Resume Bullets
-
 Design Principles
+
 The system is designed to help candidates improve resume-job alignment without encouraging fabricated information.
 
 AI-generated recommendations should only be applied when they accurately reflect the candidate's real skills, experience, and achievements.
 
 Future Improvements
+
 Potential future improvements include:
+
 Multi-resume comparison
 Job description URL support
 Resume section-level scoring
@@ -340,25 +337,20 @@ Resume template generation
 Authentication
 Historical resume score tracking
 Improved semantic skill matching
-
-Screenshots Folder
-The screenshot section will show broken images until the screenshots folder and image files are added.
-
-Create the following structure:
-screenshots/
-├── analysis.png
-├── skills.png
-├── ats-insights.png
-├── rag-evidence.png
-└── bullet-optimizer.png
-
 Disclaimer
+
 ATS scores generated by this application are estimates intended to help improve resume-job alignment.
 
 Different Applicant Tracking Systems may use different scoring and ranking methods.
 
 Author
+
 Bhagvati
 
 Built using Python, Streamlit, LangChain, Hugging Face, FAISS, RAG, and GPT-OSS-20B.
-```
+
+
+After pasting:
+
+```text
+Ctrl + S
