@@ -245,6 +245,7 @@ AI-Resume-Job-Matcher/
     ├── rag_pipeline.py
     ├── ats_scorer.py
     └── bullet_optimizer.py
+```
 
 RAG Pipeline
 The application follows these steps:
