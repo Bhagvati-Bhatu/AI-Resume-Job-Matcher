@@ -9,6 +9,10 @@ from langchain_core.output_parsers import StrOutputParser
 from src.llm import HuggingFaceLLM
 
 
+# =========================================================
+# STRUCTURED RESUME ANALYSIS
+# =========================================================
+
 class ResumeAnalysis(BaseModel):
 
     match_score: int = Field(
@@ -40,9 +44,21 @@ class ResumeAnalysis(BaseModel):
     )
 
 
+# =========================================================
+# JSON EXTRACTION
+# =========================================================
+
 def extract_json(text):
 
-    # Remove markdown code fences
+    if not text or not text.strip():
+
+        raise ValueError(
+            "LLM returned an empty response."
+        )
+
+    text = text.strip()
+
+    # Remove markdown JSON fences
     text = re.sub(
         r"```json\s*",
         "",
@@ -64,6 +80,7 @@ def extract_json(text):
     )
 
     if not match:
+
         raise ValueError(
             "No JSON object found in LLM response."
         )
@@ -73,6 +90,10 @@ def extract_json(text):
     return json.loads(json_text)
 
 
+# =========================================================
+# RESUME ANALYSIS
+# =========================================================
+
 def analyze_resume(
     job_description,
     resume_sections
@@ -81,7 +102,6 @@ def analyze_resume(
     llm = HuggingFaceLLM()
 
     prompt = PromptTemplate(
-
         template="""
 You are an expert ATS resume evaluator.
 
@@ -126,44 +146,26 @@ Use EXACTLY this structure:
     "recommendations": []
 }}
 """,
-
         input_variables=[
             "job_description",
             "resume_sections"
         ]
     )
 
-
-    # Create chain
     chain = prompt | llm | StrOutputParser()
 
-
-    # Call LLM
     raw_result = chain.invoke({
-
         "job_description": job_description,
-
         "resume_sections": resume_sections
-
     })
-
 
     try:
 
-        # Extract JSON
-        data = extract_json(
-            raw_result
-        )
+        data = extract_json(raw_result)
 
-
-        # Validate with Pydantic
-        result = ResumeAnalysis(
-            **data
-        )
-
+        result = ResumeAnalysis(**data)
 
         return result
-
 
     except Exception as e:
 
@@ -177,8 +179,123 @@ Use EXACTLY this structure:
             f"Could not parse LLM response as JSON: {e}"
         )
 
+
+# =========================================================
+# FALLBACK JOB SKILL EXTRACTION
+# =========================================================
+
+def fallback_extract_job_skills(job_description):
+
+    """
+    Fallback skill extraction used only when the LLM returns
+    an empty or invalid response.
+
+    This prevents the application from crashing.
+    """
+
+    common_skills = [
+
+        # Programming languages
+        "Python",
+        "Java",
+        "C++",
+        "C",
+        "JavaScript",
+        "TypeScript",
+        "SQL",
+        "R",
+
+        # Data / ML
+        "Machine Learning",
+        "Deep Learning",
+        "Artificial Intelligence",
+        "Generative AI",
+        "NLP",
+        "Computer Vision",
+        "Data Science",
+        "Data Analytics",
+
+        # AI / LLM
+        "LLM",
+        "RAG",
+        "LangChain",
+        "LlamaIndex",
+        "FAISS",
+        "Hugging Face",
+        "OpenAI",
+
+        # Frameworks
+        "Django",
+        "Flask",
+        "FastAPI",
+        "React",
+        "Angular",
+        "Node.js",
+
+        # Databases
+        "MySQL",
+        "PostgreSQL",
+        "MongoDB",
+        "Redis",
+        "SQL Server",
+
+        # Cloud
+        "AWS",
+        "Azure",
+        "Google Cloud",
+        "GCP",
+
+        # DevOps
+        "Docker",
+        "Kubernetes",
+        "Git",
+        "GitHub",
+        "CI/CD",
+
+        # Concepts
+        "Data Structures",
+        "Algorithms",
+        "Object-Oriented Programming",
+        "REST APIs",
+        "APIs",
+        "Microservices",
+        "System Design",
+        "Software Architecture",
+
+        # Testing
+        "Testing",
+        "Unit Testing",
+        "PyTest",
+
+        # Data tools
+        "Pandas",
+        "NumPy",
+        "Matplotlib",
+        "Power BI",
+        "Tableau",
+        "Spark",
+        "PySpark"
+    ]
+
+    job_text = job_description.lower()
+
+    detected_skills = []
+
+    for skill in common_skills:
+
+        if skill.lower() in job_text:
+
+            detected_skills.append(skill)
+
+    return detected_skills[:20]
+
+
+# =========================================================
+# AI JOB SKILL EXTRACTION
+# =========================================================
+
 def extract_job_skills(job_description):
-    
+
     llm = HuggingFaceLLM()
 
     prompt = PromptTemplate(
@@ -215,24 +332,105 @@ Use exactly this format:
 
     chain = prompt | llm | StrOutputParser()
 
-    raw_result = chain.invoke({
-        "job_description": job_description
-    })
+    # =====================================================
+    # FIRST ATTEMPT
+    # =====================================================
 
     try:
 
-        data = extract_json(raw_result)
+        raw_result = chain.invoke({
+            "job_description": job_description
+        })
 
-        return data["skills"]
+        if raw_result and raw_result.strip():
+
+            data = extract_json(raw_result)
+
+            skills = data.get("skills", [])
+
+            if isinstance(skills, list):
+
+                return skills[:20]
 
     except Exception as e:
 
         print(
-            "\n========== RAW SKILL RESPONSE ==========\n"
+            "\n========== SKILL EXTRACTION ATTEMPT 1 FAILED =========="
         )
 
-        print(raw_result)
+        print(e)
 
-        raise ValueError(
-            f"Could not extract job skills: {e}"
+
+    # =====================================================
+    # SECOND ATTEMPT
+    # =====================================================
+
+    try:
+
+        retry_prompt = PromptTemplate(
+            template="""
+Extract technical skills from this job description.
+
+Return ONLY JSON.
+
+No explanation.
+No markdown.
+No extra text.
+
+Format:
+
+{{
+    "skills": ["Python", "SQL"]
+}}
+
+JOB DESCRIPTION:
+
+{job_description}
+""",
+            input_variables=[
+                "job_description"
+            ]
         )
+
+        retry_chain = (
+            retry_prompt
+            | llm
+            | StrOutputParser()
+        )
+
+        raw_result = retry_chain.invoke({
+            "job_description": job_description
+        })
+
+        if raw_result and raw_result.strip():
+
+            data = extract_json(raw_result)
+
+            skills = data.get("skills", [])
+
+            if isinstance(skills, list):
+
+                return skills[:20]
+
+    except Exception as e:
+
+        print(
+            "\n========== SKILL EXTRACTION ATTEMPT 2 FAILED =========="
+        )
+
+        print(e)
+
+
+    # =====================================================
+    # FALLBACK
+    # =====================================================
+
+    print(
+        "\n========== USING FALLBACK SKILL EXTRACTION =========="
+    )
+
+    fallback_skills = fallback_extract_job_skills(
+        job_description
+    )
+
+    return fallback_skills
