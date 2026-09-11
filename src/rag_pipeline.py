@@ -9,10 +9,6 @@ from langchain_core.output_parsers import StrOutputParser
 from src.llm import HuggingFaceLLM
 
 
-# =========================================================
-# STRUCTURED RESUME ANALYSIS
-# =========================================================
-
 class ResumeAnalysis(BaseModel):
 
     match_score: int = Field(
@@ -44,21 +40,13 @@ class ResumeAnalysis(BaseModel):
     )
 
 
-# =========================================================
-# JSON EXTRACTION
-# =========================================================
-
 def extract_json(text):
 
     if not text or not text.strip():
-
         raise ValueError(
             "LLM returned an empty response."
         )
 
-    text = text.strip()
-
-    # Remove markdown JSON fences
     text = re.sub(
         r"```json\s*",
         "",
@@ -72,7 +60,6 @@ def extract_json(text):
         text
     )
 
-    # Find JSON object
     match = re.search(
         r"\{.*\}",
         text,
@@ -80,19 +67,14 @@ def extract_json(text):
     )
 
     if not match:
-
         raise ValueError(
             "No JSON object found in LLM response."
         )
 
-    json_text = match.group(0)
+    json_text = match.group(0).strip()
 
     return json.loads(json_text)
 
-
-# =========================================================
-# RESUME ANALYSIS
-# =========================================================
 
 def analyze_resume(
     job_description,
@@ -133,6 +115,10 @@ IMPORTANT RULES:
 - Return ONLY valid JSON.
 - Do NOT use markdown.
 - Do NOT write explanations before or after the JSON.
+- Make sure every JSON key and string is enclosed in double quotes.
+- Make sure all arrays and objects are properly closed.
+- Make sure commas are placed correctly.
+- Do not include trailing commas.
 
 Use EXACTLY this structure:
 
@@ -154,10 +140,16 @@ Use EXACTLY this structure:
 
     chain = prompt | llm | StrOutputParser()
 
-    raw_result = chain.invoke({
+    input_data = {
         "job_description": job_description,
         "resume_sections": resume_sections
-    })
+    }
+
+    # ---------------------------------------------------------
+    # FIRST ATTEMPT
+    # ---------------------------------------------------------
+
+    raw_result = chain.invoke(input_data)
 
     try:
 
@@ -167,35 +159,113 @@ Use EXACTLY this structure:
 
         return result
 
-    except Exception as e:
+    except Exception as first_error:
 
         print(
-            "\n========== RAW LLM RESPONSE ==========\n"
+            "\n========== FIRST ANALYSIS RESPONSE ==========\n"
         )
 
         print(raw_result)
 
+        print(
+            "\n========== FIRST PARSING ERROR ==========\n"
+        )
+
+        print(first_error)
+
+    # ---------------------------------------------------------
+    # SECOND ATTEMPT
+    # ---------------------------------------------------------
+
+    retry_prompt = PromptTemplate(
+        template="""
+You are an expert ATS resume evaluator.
+
+Your previous response contained invalid JSON.
+
+Create the resume analysis again.
+
+JOB DESCRIPTION:
+
+{job_description}
+
+RELEVANT RESUME SECTIONS:
+
+{resume_sections}
+
+STRICT OUTPUT RULES:
+
+1. Return ONLY one valid JSON object.
+2. Do NOT use markdown.
+3. Do NOT use ```json.
+4. Do NOT add explanations.
+5. Do NOT add text before or after the JSON.
+6. Every key must use double quotes.
+7. Every string must use double quotes.
+8. Arrays must be valid JSON arrays.
+9. Objects must be properly closed.
+10. Every item must be separated by a comma.
+11. Do not use trailing commas.
+12. Scores must be integers between 0 and 100.
+13. Do not invent information.
+14. Use at most 5 matched skills.
+15. Use at most 5 missing skills.
+16. Use at most 3 ATS issues.
+17. Use at most 5 recommendations.
+
+Return EXACTLY:
+
+{{
+    "match_score": 0,
+    "matched_skills": [],
+    "missing_skills": [],
+    "experience_match": 0,
+    "education_match": 0,
+    "ats_issues": [],
+    "recommendations": []
+}}
+""",
+        input_variables=[
+            "job_description",
+            "resume_sections"
+        ]
+    )
+
+    retry_chain = retry_prompt | llm | StrOutputParser()
+
+    retry_result = retry_chain.invoke(input_data)
+
+    try:
+
+        data = extract_json(retry_result)
+
+        result = ResumeAnalysis(**data)
+
+        return result
+
+    except Exception as second_error:
+
+        print(
+            "\n========== RETRY ANALYSIS RESPONSE ==========\n"
+        )
+
+        print(retry_result)
+
+        print(
+            "\n========== RETRY PARSING ERROR ==========\n"
+        )
+
+        print(second_error)
+
         raise ValueError(
-            f"Could not parse LLM response as JSON: {e}"
+            "The AI returned invalid analysis data after two attempts. "
+            "Please click ANALYZE again."
         )
 
 
-# =========================================================
-# FALLBACK JOB SKILL EXTRACTION
-# =========================================================
-
 def fallback_extract_job_skills(job_description):
 
-    """
-    Fallback skill extraction used only when the LLM returns
-    an empty or invalid response.
-
-    This prevents the application from crashing.
-    """
-
     common_skills = [
-
-        # Programming languages
         "Python",
         "Java",
         "C++",
@@ -204,18 +274,17 @@ def fallback_extract_job_skills(job_description):
         "TypeScript",
         "SQL",
         "R",
-
-        # Data / ML
         "Machine Learning",
+        "ML",
         "Deep Learning",
         "Artificial Intelligence",
+        "AI",
         "Generative AI",
+        "GenAI",
         "NLP",
         "Computer Vision",
         "Data Science",
         "Data Analytics",
-
-        # AI / LLM
         "LLM",
         "RAG",
         "LangChain",
@@ -223,51 +292,37 @@ def fallback_extract_job_skills(job_description):
         "FAISS",
         "Hugging Face",
         "OpenAI",
-
-        # Frameworks
         "Django",
         "Flask",
         "FastAPI",
         "React",
         "Angular",
         "Node.js",
-
-        # Databases
         "MySQL",
         "PostgreSQL",
         "MongoDB",
         "Redis",
         "SQL Server",
-
-        # Cloud
         "AWS",
         "Azure",
-        "Google Cloud",
         "GCP",
-
-        # DevOps
         "Docker",
         "Kubernetes",
         "Git",
         "GitHub",
         "CI/CD",
-
-        # Concepts
         "Data Structures",
         "Algorithms",
-        "Object-Oriented Programming",
+        "Object Oriented Programming",
+        "OOP",
         "REST APIs",
         "APIs",
         "Microservices",
         "System Design",
         "Software Architecture",
-
-        # Testing
         "Testing",
         "Unit Testing",
         "PyTest",
-
-        # Data tools
         "Pandas",
         "NumPy",
         "Matplotlib",
@@ -279,20 +334,17 @@ def fallback_extract_job_skills(job_description):
 
     job_text = job_description.lower()
 
-    detected_skills = []
+    found_skills = []
 
     for skill in common_skills:
 
         if skill.lower() in job_text:
 
-            detected_skills.append(skill)
+            if skill not in found_skills:
+                found_skills.append(skill)
 
-    return detected_skills[:20]
+    return found_skills[:20]
 
-
-# =========================================================
-# AI JOB SKILL EXTRACTION
-# =========================================================
 
 def extract_job_skills(job_description):
 
@@ -318,6 +370,9 @@ RULES:
 - Remove duplicates.
 - Use standard skill names.
 - Return at most 20 skills.
+- Every JSON key and string must use double quotes.
+- Make sure the JSON is properly closed.
+- Do not use markdown.
 
 Use exactly this format:
 
@@ -332,105 +387,115 @@ Use exactly this format:
 
     chain = prompt | llm | StrOutputParser()
 
-    # =====================================================
+    input_data = {
+        "job_description": job_description
+    }
+
+    # ---------------------------------------------------------
     # FIRST ATTEMPT
-    # =====================================================
+    # ---------------------------------------------------------
+
+    raw_result = chain.invoke(input_data)
 
     try:
 
-        raw_result = chain.invoke({
-            "job_description": job_description
-        })
+        data = extract_json(raw_result)
 
-        if raw_result and raw_result.strip():
+        skills = data.get("skills", [])
 
-            data = extract_json(raw_result)
+        if not isinstance(skills, list):
+            raise ValueError(
+                "The skills field is not a list."
+            )
 
-            skills = data.get("skills", [])
+        return skills[:20]
 
-            if isinstance(skills, list):
-
-                return skills[:20]
-
-    except Exception as e:
+    except Exception as first_error:
 
         print(
-            "\n========== SKILL EXTRACTION ATTEMPT 1 FAILED =========="
+            "\n========== FIRST SKILL RESPONSE ==========\n"
         )
 
-        print(e)
+        print(raw_result)
 
+        print(
+            "\n========== FIRST SKILL PARSING ERROR ==========\n"
+        )
 
-    # =====================================================
+        print(first_error)
+
+    # ---------------------------------------------------------
     # SECOND ATTEMPT
-    # =====================================================
+    # ---------------------------------------------------------
 
-    try:
-
-        retry_prompt = PromptTemplate(
-            template="""
-Extract technical skills from this job description.
-
-Return ONLY JSON.
-
-No explanation.
-No markdown.
-No extra text.
-
-Format:
-
-{{
-    "skills": ["Python", "SQL"]
-}}
+    retry_prompt = PromptTemplate(
+        template="""
+Extract technical skills from the job description.
 
 JOB DESCRIPTION:
 
 {job_description}
+
+Return ONLY valid JSON.
+
+Do not write explanations.
+Do not use markdown.
+Do not use ```json.
+Do not invent skills.
+Extract only skills explicitly mentioned.
+Remove duplicates.
+Return at most 20 skills.
+
+Use EXACTLY:
+
+{{
+    "skills": []
+}}
 """,
-            input_variables=[
-                "job_description"
-            ]
-        )
+        input_variables=[
+            "job_description"
+        ]
+    )
 
-        retry_chain = (
-            retry_prompt
-            | llm
-            | StrOutputParser()
-        )
+    retry_chain = retry_prompt | llm | StrOutputParser()
 
-        raw_result = retry_chain.invoke({
-            "job_description": job_description
-        })
+    retry_result = retry_chain.invoke(input_data)
 
-        if raw_result and raw_result.strip():
+    try:
 
-            data = extract_json(raw_result)
+        data = extract_json(retry_result)
 
-            skills = data.get("skills", [])
+        skills = data.get("skills", [])
 
-            if isinstance(skills, list):
+        if not isinstance(skills, list):
+            raise ValueError(
+                "The skills field is not a list."
+            )
 
-                return skills[:20]
+        return skills[:20]
 
-    except Exception as e:
+    except Exception as second_error:
 
         print(
-            "\n========== SKILL EXTRACTION ATTEMPT 2 FAILED =========="
+            "\n========== RETRY SKILL RESPONSE ==========\n"
         )
 
-        print(e)
+        print(retry_result)
 
+        print(
+            "\n========== RETRY SKILL PARSING ERROR ==========\n"
+        )
 
-    # =====================================================
-    # FALLBACK
-    # =====================================================
+        print(second_error)
 
-    print(
-        "\n========== USING FALLBACK SKILL EXTRACTION =========="
-    )
+        # -----------------------------------------------------
+        # FALLBACK KEYWORD EXTRACTION
+        # -----------------------------------------------------
 
-    fallback_skills = fallback_extract_job_skills(
-        job_description
-    )
+        print(
+            "\n========== USING FALLBACK SKILL EXTRACTION ==========\n"
+        )
 
-    return fallback_skills
+        return fallback_extract_job_skills(
+            job_description
+        )
