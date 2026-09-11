@@ -4,7 +4,7 @@ An AI-powered Resume–Job Matching and ATS Optimization System that analyzes a 
 
 ## Live Demo
 
-[Launch the AI Resume–Job Matcher](https://ai-resume-job-matcher-kr5j2sohxkd6ggyavehur8.streamlit.app/)
+[Launch the AI Resume–Job Matcher](https://ai-resume-job-matcher-kr5j2sohxkd6qgyayehur8.streamlit.app/)
 
 ## Overview
 
