@@ -396,6 +396,17 @@ st.markdown(
     /* ---------------------------------------------------
        BUTTONS
     --------------------------------------------------- */
+    /* Keep every Streamlit primary/blue button readable. */
+    button[kind="primary"],
+    button[data-testid="baseButton-primary"] {
+        color: #FFFFFF !important;
+    }
+
+    button[kind="primary"] *,
+    button[data-testid="baseButton-primary"] * {
+        color: #FFFFFF !important;
+    }
+
     div[class*="st-key-cta"] button[kind="primary"] {
         background: #1A46E0 !important;
         border: 1.5px solid #111111 !important;
@@ -427,6 +438,25 @@ st.markdown(
     div[data-testid="stFileUploader"] section span,
     div[data-testid="stFileUploader"] section small {
         color: #55534B !important;
+    }
+
+    /* Upload/Browse button: blue background with white text. */
+    div[data-testid="stFileUploader"] button {
+        background: #1A46E0 !important;
+        border: 1.5px solid #111111 !important;
+        border-radius: 0 !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stFileUploader"] button:hover {
+        background: #123AC4 !important;
+        color: #FFFFFF !important;
+    }
+
+    div[data-testid="stFileUploader"] button * {
+        color: #FFFFFF !important;
     }
 
     .stTextArea textarea,
