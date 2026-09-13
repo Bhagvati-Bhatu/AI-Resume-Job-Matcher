@@ -1,233 +1,13 @@
 import re
+
 import numpy as np
 
+from src.embeddings import create_embeddings
+
 
 # ---------------------------------------------------------
-# SKILL NORMALIZATION
+# TEXT NORMALIZATION
 # ---------------------------------------------------------
-
-SKILL_ALIASES = {
-    "object oriented programming": [
-        "oop",
-        "object-oriented programming",
-        "object oriented programming",
-        "object-oriented programming (oop)"
-    ],
-
-    "software development life cycle": [
-        "sdlc",
-        "software development life cycle",
-        "software development lifecycle"
-    ],
-
-    "software testing life cycle": [
-        "stlc",
-        "software testing life cycle",
-        "software testing lifecycle"
-    ],
-
-    "test case writing": [
-        "test case writing",
-        "test case design",
-        "test cases"
-    ],
-
-    "github copilot": [
-        "github copilot",
-        "github-copilot",
-        "github copilot"
-    ],
-
-    "chatgpt": [
-        "chatgpt",
-        "chat gpt"
-    ],
-
-    "machine learning": [
-        "machine learning",
-        "ml"
-    ],
-
-    "deep learning": [
-        "deep learning",
-        "dl"
-    ],
-
-    "artificial intelligence": [
-        "artificial intelligence",
-        "ai"
-    ],
-
-    "generative ai": [
-        "generative ai",
-        "genai",
-        "generative artificial intelligence"
-    ],
-
-    "natural language processing": [
-        "natural language processing",
-        "nlp"
-    ],
-
-    "computer vision": [
-        "computer vision",
-        "cv"
-    ],
-
-    "data analytics": [
-        "data analytics",
-        "data analysis"
-    ],
-
-    "data science": [
-        "data science"
-    ],
-
-    "large language model": [
-        "large language model",
-        "large language models",
-        "llm",
-        "llms"
-    ],
-
-    "rest api": [
-        "rest api",
-        "rest apis",
-        "restful api",
-        "restful apis"
-    ],
-
-    "unit testing": [
-        "unit testing",
-        "unit tests"
-    ],
-
-    "python": [
-        "python"
-    ],
-
-    "java": [
-        "java"
-    ],
-
-    "javascript": [
-        "javascript",
-        "js"
-    ],
-
-    "typescript": [
-        "typescript",
-        "ts"
-    ],
-
-    "sql": [
-        "sql"
-    ],
-
-    "mysql": [
-        "mysql"
-    ],
-
-    "postgresql": [
-        "postgresql",
-        "postgres"
-    ],
-
-    "mongodb": [
-        "mongodb",
-        "mongo db"
-    ],
-
-    "pandas": [
-        "pandas"
-    ],
-
-    "numpy": [
-        "numpy"
-    ],
-
-    "matplotlib": [
-        "matplotlib"
-    ],
-
-    "power bi": [
-        "power bi",
-        "powerbi"
-    ],
-
-    "tableau": [
-        "tableau"
-    ],
-
-    "langchain": [
-        "langchain"
-    ],
-
-    "llamaindex": [
-        "llamaindex",
-        "llama index"
-    ],
-
-    "hugging face": [
-        "hugging face",
-        "huggingface"
-    ],
-
-    "faiss": [
-        "faiss"
-    ],
-
-    "docker": [
-        "docker"
-    ],
-
-    "kubernetes": [
-        "kubernetes",
-        "k8s"
-    ],
-
-    "amazon web services": [
-        "amazon web services",
-        "aws"
-    ],
-
-    "microsoft azure": [
-        "microsoft azure",
-        "azure"
-    ],
-
-    "google cloud platform": [
-        "google cloud platform",
-        "gcp",
-        "google cloud"
-    ],
-
-    "git": [
-        "git"
-    ],
-
-    "github": [
-        "github",
-        "git hub"
-    ],
-
-    "continuous integration": [
-        "continuous integration",
-        "ci"
-    ],
-
-    "continuous delivery": [
-        "continuous delivery",
-        "cd"
-    ],
-
-    "continuous integration and continuous delivery": [
-        "ci/cd",
-        "ci cd",
-        "continuous integration and continuous delivery"
-    ]
-}
-
 
 def normalize_text(text):
     """
@@ -237,20 +17,25 @@ def normalize_text(text):
 
     text = text.lower()
 
+    # Replace & with "and"
     text = text.replace("&", " and ")
 
+    # Remove brackets
     text = re.sub(
         r"[\(\)\[\]\{\}]",
         " ",
         text
     )
 
+    # Replace hyphens, underscores and slashes
+    # with spaces
     text = re.sub(
         r"[-_/]",
         " ",
         text
     )
 
+    # Remove extra spaces
     text = re.sub(
         r"\s+",
         " ",
@@ -260,52 +45,100 @@ def normalize_text(text):
     return text.strip()
 
 
-def skill_matches_resume(skill, resume_text):
+# ---------------------------------------------------------
+# COSINE SIMILARITY
+# ---------------------------------------------------------
+
+def cosine_similarity(vector1, vector2):
     """
-    Check whether a required skill is present in the resume.
+    Calculate cosine similarity between two vectors.
+    """
+
+    vector1 = np.array(vector1)
+
+    vector2 = np.array(vector2)
+
+    denominator = (
+        np.linalg.norm(vector1)
+        * np.linalg.norm(vector2)
+    )
+
+    if denominator == 0:
+        return 0
+
+    similarity = (
+        np.dot(
+            vector1,
+            vector2
+        )
+        / denominator
+    )
+
+    return similarity
+
+
+# ---------------------------------------------------------
+# SKILL MATCHING
+# ---------------------------------------------------------
+
+def skill_matches_resume(
+    skill,
+    resume_text,
+    embeddings,
+    threshold=0.65
+):
+    """
+    Check whether a required skill is present
+    in the resume.
 
     Uses:
-    1. Normalized exact matching
-    2. Alias matching
+
+    1. Exact normalized matching
+    2. Semantic embedding similarity
     """
 
-    normalized_resume = normalize_text(resume_text)
-    normalized_skill = normalize_text(skill)
+    normalized_resume = normalize_text(
+        resume_text
+    )
 
-    # Direct normalized match
-    pattern = r"\b" + re.escape(normalized_skill) + r"\b"
+    normalized_skill = normalize_text(
+        skill
+    )
 
-    if re.search(pattern, normalized_resume):
+    # -----------------------------------------------------
+    # STEP 1: EXACT MATCHING
+    # -----------------------------------------------------
+
+    pattern = (
+        r"\b"
+        + re.escape(normalized_skill)
+        + r"\b"
+    )
+
+    if re.search(
+        pattern,
+        normalized_resume
+    ):
         return True
 
-    # Alias matching
-    for canonical_skill, aliases in SKILL_ALIASES.items():
+    # -----------------------------------------------------
+    # STEP 2: SEMANTIC MATCHING
+    # -----------------------------------------------------
 
-        normalized_aliases = [
-            normalize_text(alias)
-            for alias in aliases
-        ]
+    skill_embedding = embeddings.embed_query(
+        skill
+    )
 
-        if (
-            normalized_skill == normalize_text(canonical_skill)
-            or normalized_skill in normalized_aliases
-        ):
+    resume_embedding = embeddings.embed_query(
+        resume_text
+    )
 
-            for alias in normalized_aliases:
+    similarity = cosine_similarity(
+        skill_embedding,
+        resume_embedding
+    )
 
-                alias_pattern = (
-                    r"\b"
-                    + re.escape(alias)
-                    + r"\b"
-                )
-
-                if re.search(
-                    alias_pattern,
-                    normalized_resume
-                ):
-                    return True
-
-    return False
+    return similarity >= threshold
 
 
 # ---------------------------------------------------------
@@ -314,17 +147,32 @@ def skill_matches_resume(skill, resume_text):
 
 def calculate_skill_match(
     required_skills,
-    resume_text
+    resume_text,
+    embeddings=None
 ):
+    """
+    Calculate the percentage of required job skills
+    found in the resume.
+
+    Embeddings are optional so existing function calls
+    continue to work.
+    """
+
+    # Create embedding model if it was not supplied
+    if embeddings is None:
+        embeddings = create_embeddings()
 
     matched_skills = []
+
     missing_skills = []
 
+    # Check every required skill
     for skill in required_skills:
 
         if skill_matches_resume(
             skill,
-            resume_text
+            resume_text,
+            embeddings
         ):
 
             matched_skills.append(skill)
@@ -332,6 +180,10 @@ def calculate_skill_match(
         else:
 
             missing_skills.append(skill)
+
+    # -----------------------------------------------------
+    # CALCULATE SCORE
+    # -----------------------------------------------------
 
     if not required_skills:
 
@@ -346,7 +198,9 @@ def calculate_skill_match(
 
     return {
         "score": round(score),
+
         "matched_skills": matched_skills,
+
         "missing_skills": missing_skills
     }
 
@@ -356,6 +210,19 @@ def calculate_skill_match(
 # ---------------------------------------------------------
 
 def calculate_structure_score(resume_text):
+    """
+    Calculate a basic resume structure score.
+
+    Checks for:
+
+    - Education
+    - Skills
+    - Projects
+    - Experience
+    - Certifications
+    - Email
+    - Phone number
+    """
 
     score = 0
 
@@ -369,25 +236,39 @@ def calculate_structure_score(resume_text):
 
     text = resume_text.lower()
 
+    # -----------------------------------------------------
+    # SECTION CHECK
+    # -----------------------------------------------------
+
     for section in sections:
 
         if section in text:
+
             score += 1
 
-    # Email
+    # -----------------------------------------------------
+    # EMAIL CHECK
+    # -----------------------------------------------------
+
     if re.search(
-        r"\b[\w.-]+@[\w.-]+\.\w+\b",
+        r"\b[\w\.-]+@[\w\.-]+\.\w+\b",
         resume_text
     ):
+
         score += 1
 
-    # 10 digit phone number
+    # -----------------------------------------------------
+    # PHONE CHECK
+    # -----------------------------------------------------
+
     if re.search(
         r"\b\d{10}\b",
         resume_text
     ):
+
         score += 1
 
+    # Maximum score = 10
     return min(score, 10)
 
 
@@ -400,45 +281,47 @@ def calculate_semantic_similarity(
     job_description,
     resume_text
 ):
+    """
+    Calculate semantic similarity between the
+    job description and the resume.
+    """
+
+    # -----------------------------------------------------
+    # JOB EMBEDDING
+    # -----------------------------------------------------
 
     job_embedding = embeddings.embed_query(
         job_description
     )
 
+    # -----------------------------------------------------
+    # RESUME EMBEDDING
+    # -----------------------------------------------------
+
     resume_embedding = embeddings.embed_query(
         resume_text
     )
 
-    job_vector = np.array(
-        job_embedding
-    )
+    # -----------------------------------------------------
+    # COSINE SIMILARITY
+    # -----------------------------------------------------
 
-    resume_vector = np.array(
+    similarity = cosine_similarity(
+        job_embedding,
         resume_embedding
     )
 
-    denominator = (
-        np.linalg.norm(job_vector)
-        * np.linalg.norm(resume_vector)
+    # Convert similarity to 0-100 score
+    score = (
+        similarity * 100
     )
 
-    if denominator == 0:
-
-        return 0
-
-    cosine_similarity = (
-        np.dot(
-            job_vector,
-            resume_vector
-        )
-        / denominator
-    )
-
+    # Keep score between 0 and 100
     score = max(
         0,
         min(
             100,
-            cosine_similarity * 100
+            score
         )
     )
 
@@ -455,10 +338,24 @@ def calculate_ats_score(
     experience_score,
     structure_score
 ):
+    """
+    Calculate final ATS score using weighted components.
 
+    Skill matching       = 40%
+    Semantic similarity  = 30%
+    Experience match     = 20%
+    Resume structure     = 10%
+    """
+
+    # Convert structure score from 0-10
+    # to 0-100
     structure_score_100 = (
         structure_score * 10
     )
+
+    # -----------------------------------------------------
+    # WEIGHTED SCORE
+    # -----------------------------------------------------
 
     final_score = (
 
